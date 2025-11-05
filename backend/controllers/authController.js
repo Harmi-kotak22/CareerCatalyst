@@ -21,7 +21,11 @@ export const register = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
 export const login = async (req, res) => {
+=======
+exports.login = async (req, res) => {
+>>>>>>> bb9c8754cc0b8ac1958ee9aa5d08fef39caa8cd4
   try {
     const { email, password } = req.body;
     
@@ -45,6 +49,7 @@ export const login = async (req, res) => {
 
     console.log('Login successful for user:', email);
     
+<<<<<<< HEAD
     // If user is a Fresher, check if they have a profile
     if (user.userType === 'Fresher') {
       const Fresher = (await import('../models/Fresher.js')).default;
@@ -81,12 +86,20 @@ export const login = async (req, res) => {
     res.status(200).json({
       message: 'Login successful',
       token,
+=======
+    res.status(200).json({
+      message: 'Login successful',
+>>>>>>> bb9c8754cc0b8ac1958ee9aa5d08fef39caa8cd4
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
+<<<<<<< HEAD
         userType: user.userType,
         isProfileComplete: user.isProfileComplete
+=======
+        userType: user.userType
+>>>>>>> bb9c8754cc0b8ac1958ee9aa5d08fef39caa8cd4
       }
     });
   } catch (err) {
