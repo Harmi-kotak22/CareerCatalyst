@@ -6,6 +6,7 @@ import {
 } from '../utils/groqService.js';
 import User from '../models/User.js';
 import Fresher from '../models/Fresher.js';
+import Student from '../models/Student.js';
 import { fetchLinkedInProfiles } from '../utils/googleSearchService.js';
 import { generateRoadmapPDF } from '../utils/pdfGenerator.js';
 
@@ -300,7 +301,177 @@ export const getSavedProfiles = async (req, res) => {
     }
 };
 
-// Get development path for specific skills
+// Student Profile Management
+export const getStudentProfile = async (req, res) => {
+    try {
+        const studentProfile = await Student.findOne({ userId: req.user.id });
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found' });
+        }
+        res.json(studentProfile);
+    } catch (error) {
+        console.error('Get student profile error:', error);
+        res.status(500).json({ message: 'Error retrieving student profile' });
+    }
+};
+
+export const updateStudentProfile = async (req, res) => {
+    try {
+        const { skills, currentEducation, interests, academicPerformance } = req.body;
+
+        if (!skills || !Array.isArray(skills)) {
+            return res.status(400).json({ message: 'Skills array is required' });
+        }
+
+        const studentProfile = await Student.findOneAndUpdate(
+            { userId: req.user.id },
+            {
+                skills,
+                currentEducation,
+                interests,
+                academicPerformance
+            },
+            { new: true, upsert: true }
+        );
+
+        await User.findByIdAndUpdate(req.user.id, { isProfileComplete: true });
+
+        res.json(studentProfile);
+    } catch (error) {
+        console.error('Update student profile error:', error);
+        res.status(500).json({ message: 'Error updating student profile' });
+    }
+};
+
+// Student Skill Gap Analysis and Roadmap
+export const getStudentSkillGaps = async (req, res) => {
+    try {
+        const { targetRole } = req.params;
+        const studentProfile = await Student.findOne({ userId: req.user.id });
+        
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found' });
+        }
+
+        // Get detailed skill gap analysis
+        const analysis = await getSkillGapAnalysis(studentProfile.skills, targetRole, 'student');
+        
+        // Generate learning roadmap for missing skills
+        const missingSkills = analysis.analysis.missingSkills.map(skill => skill.skill);
+        const roadmap = await generateLearningRoadmap(studentProfile.skills, missingSkills, 'student');
+
+        // Combine the analysis and roadmap with educational context
+        const response = {
+            skillGapAnalysis: analysis.analysis,
+            learningRoadmap: roadmap.roadmap,
+            educationalContext: {
+                relevantCourses: await getRelevantCourses(targetRole),
+                prerequisites: await getPrerequisiteSkills(targetRole),
+                academicPathway: await getAcademicPathway(targetRole)
+            }
+        };
+
+        res.json(response);
+    } catch (error) {
+        console.error('Student skill gap analysis error:', error);
+        res.status(500).json({ message: 'Error analyzing skill gaps and generating roadmap' });
+    }
+};
+
+export const downloadStudentRoadmapPDF = async (req, res) => {
+    try {
+        const { targetRole } = req.params;
+        const studentProfile = await Student.findOne({ userId: req.user.id });
+        
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found' });
+        }
+
+        // Get detailed skill gap analysis
+        const analysis = await getSkillGapAnalysis(studentProfile.skills, targetRole, 'student');
+        
+        // Generate learning roadmap for missing skills
+        const missingSkills = analysis.analysis.missingSkills.map(skill => skill.skill);
+        const roadmap = await generateLearningRoadmap(studentProfile.skills, missingSkills, 'student');
+
+        // Add educational context to the roadmap
+        const educationalContext = {
+            relevantCourses: await getRelevantCourses(targetRole),
+            prerequisites: await getPrerequisiteSkills(targetRole),
+            academicPathway: await getAcademicPathway(targetRole)
+        };
+
+        // Generate PDF with student-specific context
+        const pdfBuffer = await generateRoadmapPDF({
+            ...roadmap.roadmap,
+            educationalContext
+        }, analysis.analysis, 'student');
+
+        // Set response headers
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=student-roadmap-${targetRole.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+
+        // Send the PDF
+        res.send(pdfBuffer);
+
+    } catch (error) {
+        console.error('PDF generation error:', error);
+        res.status(500).json({ message: 'Error generating roadmap PDF' });
+    }
+};
+
+// Helper functions for student-specific context
+async function getRelevantCourses(role) {
+    // Mock implementation - replace with actual course database/API integration
+    return [
+        {
+            name: `Introduction to ${role}`,
+            provider: 'Coursera',
+            duration: '8 weeks',
+            level: 'Beginner'
+        },
+        {
+            name: `${role} Fundamentals`,
+            provider: 'edX',
+            duration: '12 weeks',
+            level: 'Intermediate'
+        }
+    ];
+}
+
+async function getPrerequisiteSkills(role) {
+    // Mock implementation - replace with actual skill prerequisites logic
+    return [
+        {
+            skill: 'Mathematics',
+            level: 'Advanced',
+            importance: 'High'
+        },
+        {
+            skill: 'Computer Science Basics',
+            level: 'Intermediate',
+            importance: 'High'
+        }
+    ];
+}
+
+async function getAcademicPathway(role) {
+    // Mock implementation - replace with actual academic pathway logic
+    return {
+        recommendations: [
+            'Complete Bachelor\'s in Computer Science',
+            'Take specialized courses in the field',
+            'Gain practical experience through internships'
+        ],
+        certifications: [
+            'AWS Certified Developer',
+            'Google Cloud Professional Developer'
+        ],
+        timeline: '4-5 years'
+    };
+}
+
+// Get development path for specific skills for freshers
 export const getSkillDevelopmentPath = async (req, res) => {
     try {
         const { skills } = req.body;
@@ -342,6 +513,88 @@ export const getSkillDevelopmentPath = async (req, res) => {
         });
     } catch (error) {
         console.error('Skill development path error:', error);
+        res.status(500).json({ message: 'Error generating skill development path' });
+    }
+};
+
+// Helper function to get educational resources for a skill
+async function getEducationalResources(skill) {
+    // This would typically connect to an educational resources API or database
+    // Mock response for now
+    return [
+        {
+            type: 'Course',
+            name: `Introduction to ${skill}`,
+            platform: 'Coursera',
+            duration: '6 weeks',
+            level: 'Beginner'
+        },
+        {
+            type: 'Tutorial',
+            name: `${skill} Fundamentals`,
+            platform: 'YouTube',
+            duration: '3 hours',
+            level: 'Beginner'
+        },
+        {
+            type: 'Practice',
+            name: `${skill} Projects`,
+            platform: 'GitHub',
+            duration: 'Self-paced',
+            level: 'Intermediate'
+        }
+    ];
+}
+
+// Get development path for specific skills for students
+export const getStudentDevelopmentPath = async (req, res) => {
+    try {
+        const { skills } = req.body;
+        const studentProfile = await Student.findOne({ userId: req.user.id });
+        
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found' });
+        }
+
+        if (!skills || !Array.isArray(skills)) {
+            return res.status(400).json({ message: 'Target skills must be provided as an array' });
+        }
+
+        // Generate detailed learning roadmap for the specified skills
+        const roadmap = await generateLearningRoadmap(studentProfile.skills, skills, 'student');
+
+        // For each skill, get learning resources and opportunities
+        const skillDevelopment = await Promise.all(
+            skills.map(async (skill) => {
+                try {
+                    const profiles = await getLinkedInProfiles(`${skill} education expert`);
+                    return {
+                        skill,
+                        expertProfiles: profiles.profiles.slice(0, 3),
+                        educationalResources: await getEducationalResources(skill)
+                    };
+                } catch (error) {
+                    console.error(`Error fetching development info for skill ${skill}:`, error);
+                    return {
+                        skill,
+                        expertProfiles: [],
+                        educationalResources: []
+                    };
+                }
+            })
+        );
+
+        res.json({
+            developmentPath: roadmap.roadmap,
+            skillDevelopment,
+            educationalContext: {
+                relevantCourses: await getRelevantCourses(skills[0]), // Using first skill as main focus
+                prerequisites: await getPrerequisiteSkills(skills[0]),
+                academicPathway: await getAcademicPathway(skills[0])
+            }
+        });
+    } catch (error) {
+        console.error('Student skill development path error:', error);
         res.status(500).json({ message: 'Error generating skill development path' });
     }
 };
