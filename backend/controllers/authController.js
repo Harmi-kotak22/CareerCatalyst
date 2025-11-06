@@ -1,20 +1,66 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import User from '../models/User';
+import User from '../models/User.js';
+import Student from '../models/Student.js';
+import Fresher from '../models/Fresher.js';
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, userType } = req.body;
+    console.log('Registration request body:', req.body);
+    let { name, email, password, userType } = req.body;
+    
     if (!name || !email || !password || !userType) {
       return res.status(400).json({ message: 'All fields are required' });
     }
+
+    // Normalize userType to have first letter uppercase and rest lowercase
+    userType = userType.charAt(0).toUpperCase() + userType.slice(1).toLowerCase();
+    
+    console.log('Registering new user:', { name, email, userType });
+    
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: 'Email already registered' });
     }
+    
     const hash = await bcrypt.hash(password, 10);
     const user = new User({ name, email, password: hash, userType });
     await user.save();
+    console.log('User document created:', user._id);
+
+    // Create corresponding profile based on userType
+    try {
+      if (userType === 'Student') {
+        console.log('Creating student profile for user:', user._id);
+        const studentProfile = new Student({
+          userId: user._id,
+            skills: []
+          // name: user.name,
+          // email: user.email,
+        });
+        await studentProfile.save();
+        console.log('Student profile created successfully:', studentProfile);
+        
+        user.isProfileComplete = true;
+        await user.save();
+        console.log('Updated user isProfileComplete to true');
+      } else if (userType === 'Fresher') {
+        console.log('Creating fresher profile for user:', user._id);
+        const fresherProfile = new Fresher({
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+        });
+        await fresherProfile.save();
+        console.log('Fresher profile created successfully:', fresherProfile);
+      }
+    } catch (profileError) {
+      console.error('Error creating profile:', profileError);
+      // If profile creation fails, we should probably delete the user
+      await User.findByIdAndDelete(user._id);
+      throw profileError;
+    }
+
     res.status(201).json({ message: 'User registered successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -45,10 +91,14 @@ export const login = async (req, res) => {
 
     console.log('Login successful for user:', email);
     
-    // If user is a Fresher, check if they have a profile
-    if (user.userType === 'Fresher') {
-      const Fresher = (await import('../models/Fresher.js')).default;
+    // Check for profile based on user type
+    const normalizedUserType = user.userType.charAt(0).toUpperCase() + user.userType.slice(1).toLowerCase();
+    console.log('Checking profile for normalized userType:', normalizedUserType);
+    
+    if (normalizedUserType === 'Fresher') {
+      console.log('Looking for Fresher profile for user:', user._id);
       const fresherProfile = await Fresher.findOne({ userId: user._id });
+      console.log('Found Fresher profile:', fresherProfile);
       if (fresherProfile) {
         // Update isProfileComplete if not already set
         if (!user.isProfileComplete) {
@@ -56,6 +106,24 @@ export const login = async (req, res) => {
           await user.save();
         }
       } else if (user.isProfileComplete) {
+        // Reset isProfileComplete if no profile exists
+        user.isProfileComplete = false;
+        await user.save();
+      }
+    } else if (normalizedUserType === 'Student') {
+      console.log('Checking student profile for user:', user._id);
+      const studentProfile = await Student.findOne({ userId: user._id });
+      console.log('Found student profile:', studentProfile);
+      if (studentProfile) {
+        console.log('Student profile exists, current isProfileComplete:', user.isProfileComplete);
+        // Update isProfileComplete if not already set
+        if (!user.isProfileComplete) {
+          user.isProfileComplete = true;
+          await user.save();
+          console.log('Updated isProfileComplete to true');
+        }
+      } else if (user.isProfileComplete) {
+        console.log('No student profile found, resetting isProfileComplete');
         // Reset isProfileComplete if no profile exists
         user.isProfileComplete = false;
         await user.save();
