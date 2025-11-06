@@ -2,10 +2,12 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import Login from './components/Login';
 import Register from './components/Register';
 import Navbar from './components/Navbar';
+import ExperiencedDashboard from './components/ExperiencedDashboard';
 import StudentDashboard from './components/StudentDashboard';
 import StudentProfile from './components/StudentProfile';
 import FresherDashboard from './components/FresherDashboard';
 import FresherProfile from './components/FresherProfile';
+import ExperiencedProfile from './components/ExperiencedProfile';
 import './App.css';
 
 function LandingPage() {
@@ -169,6 +171,9 @@ function App() {
         <Route path="/fresher-dashboard" element={<FresherDashboard />} />
         <Route path="/fresher-profile" element={<FresherProfile />} />
         <Route path="/edit-fresher-profile" element={<FresherProfile />} />
+        <Route path="/experienced-profile" element={<ExperiencedProfile />} />
+        <Route path="/edit-experienced-profile" element={<ExperiencedProfile />} />
+        <Route path="/experienced-dashboard" element={<ExperiencedDashboard />} />
       </Routes>
     </Router>
   );

@@ -7,6 +7,7 @@ import {
 import User from '../models/User.js';
 import Fresher from '../models/Fresher.js';
 import Student from '../models/Student.js';
+import Experienced from '../models/Experienced.js';
 import { fetchLinkedInProfiles } from '../utils/googleSearchService.js';
 import { generateRoadmapPDF } from '../utils/pdfGenerator.js';
 
@@ -547,6 +548,60 @@ async function getEducationalResources(skill) {
 }
 
 // Get development path for specific skills for students
+// Experienced profile management
+export const getExperiencedProfile = async (req, res) => {
+    try {
+        const experiencedProfile = await Experienced.findOne({ userId: req.user.id });
+        if (!experiencedProfile) {
+            return res.status(404).json({ message: 'Experienced profile not found' });
+        }
+        res.json(experiencedProfile);
+    } catch (error) {
+        console.error('Get experienced profile error:', error);
+        res.status(500).json({ message: 'Error retrieving experienced profile' });
+    }
+};
+
+export const updateExperiencedProfile = async (req, res) => {
+    try {
+        const {
+            skills,
+            reasonForSwitch,
+            salaryPreferences,
+            experienceYears,
+            workMode,
+            additionalAchievements
+        } = req.body;
+
+        // Validate required fields
+        if (!skills || !Array.isArray(skills) || !reasonForSwitch || !salaryPreferences || !experienceYears || !workMode) {
+            return res.status(400).json({ message: 'All fields except additional achievements are required' });
+        }
+
+        // Update or create experienced profile
+        const experiencedProfile = await Experienced.findOneAndUpdate(
+            { userId: req.user.id },
+            {
+                skills,
+                reasonForSwitch,
+                salaryPreferences,
+                experienceYears,
+                workMode,
+                additionalAchievements
+            },
+            { new: true, upsert: true }
+        );
+
+        // Update user's profile completion status
+        await User.findByIdAndUpdate(req.user.id, { isProfileComplete: true });
+
+        res.json(experiencedProfile);
+    } catch (error) {
+        console.error('Update experienced profile error:', error);
+        res.status(500).json({ message: 'Error updating experienced profile' });
+    }
+};
+
 export const getStudentDevelopmentPath = async (req, res) => {
     try {
         const { skills } = req.body;
@@ -596,5 +651,110 @@ export const getStudentDevelopmentPath = async (req, res) => {
     } catch (error) {
         console.error('Student skill development path error:', error);
         res.status(500).json({ message: 'Error generating skill development path' });
+    }
+};
+
+// Get career recommendations for experienced users
+export const getExperiencedCareerRecommendations = async (req, res) => {
+    try {
+        const experiencedProfile = await Experienced.findOne({ userId: req.user.id });
+        
+        if (!experiencedProfile) {
+            return res.status(404).json({ message: 'Experienced profile not found' });
+        }
+
+        const { skills, experienceYears, reasonForSwitch, workMode } = experiencedProfile;
+
+        if (!skills || !experienceYears || !reasonForSwitch || !workMode) {
+            return res.status(400).json({ message: 'Profile is incomplete. Please update all required fields.' });
+        }
+
+        const recommendations = await getCareerRecommendations({
+            type: 'experienced',
+            skills: skills,
+            experience: experienceYears,
+            reasonForSwitch: reasonForSwitch,
+            workMode: workMode
+        });
+
+        res.json(recommendations);
+    } catch (error) {
+        console.error('Career recommendations error:', error);
+        res.status(500).json({ 
+            message: 'Error generating career recommendations',
+            error: error.message 
+        });
+    }
+};
+
+// Get skill gaps for experienced users
+export const getExperiencedSkillGaps = async (req, res) => {
+    try {
+        const { role } = req.params;
+        const experiencedProfile = await Experienced.findOne({ userId: req.user.id });
+        
+        if (!experiencedProfile) {
+            return res.status(404).json({ message: 'Experienced profile not found' });
+        }
+
+        // Pass the entire profile to get comprehensive analysis
+        const analysis = await getSkillGapAnalysis({
+            skills: experiencedProfile.skills,
+            experienceYears: experiencedProfile.experienceYears,
+            workMode: experiencedProfile.workMode,
+            reasonForSwitch: experiencedProfile.reasonForSwitch
+        }, role);
+
+        res.json(analysis.analysis); // Send just the analysis part of the response
+    } catch (error) {
+        console.error('Skill gap analysis error:', error);
+        res.status(500).json({ 
+            message: 'Error analyzing skill gaps',
+            error: error.message 
+        });
+    }
+};
+
+// Generate and download career transition roadmap PDF
+export const generateExperiencedRoadmapPDF = async (req, res) => {
+    try {
+        const { role } = req.params;
+        const experiencedProfile = await Experienced.findOne({ userId: req.user.id });
+        
+        if (!experiencedProfile) {
+            return res.status(404).json({ message: 'Experienced profile not found' });
+        }
+
+        // Get the skill gap analysis first
+        const skillGapAnalysis = await getSkillGapAnalysis({
+            skills: experiencedProfile.skills,
+            experienceYears: experiencedProfile.experienceYears,
+            workMode: experiencedProfile.workMode,
+            reasonForSwitch: experiencedProfile.reasonForSwitch
+        }, role);
+
+        // Generate learning roadmap
+        const roadmap = await generateLearningRoadmap(
+            experiencedProfile.skills,
+            skillGapAnalysis.analysis.missingSkills.map(skill => skill.skill)
+        );
+        
+        // Generate PDF
+        const pdfBuffer = await generateRoadmapPDF(roadmap.roadmap, skillGapAnalysis.analysis);
+
+        // Set response headers
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=career-transition-roadmap-${role.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+
+        // Send the PDF
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('PDF generation error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ 
+                message: 'Error generating roadmap PDF',
+                error: error.message 
+            });
+        }
     }
 };

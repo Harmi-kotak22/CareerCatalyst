@@ -36,44 +36,42 @@ function safeJSONParse(text) {
 }
 
 // 🧩 Career recommendation prompt
-const CAREER_PROMPT = `You are a career advisor AI specializing in technology careers. Based on the provided skills, analyze and suggest suitable job roles, skill gaps, and create a learning roadmap.
+const CAREER_PROMPT = `You are a career advisor AI specializing in technology careers with deep expertise in career transitions. Based on the provided profile, analyze and suggest suitable career transition paths.
 
-Given skills: {skills}
+Given profile:
+- Current skills: {skills}
+- Years of experience: {experience}
+- Reason for switch: {reason}
+- Work mode preference: {workMode}
 
 Please provide your response in the following JSON format:
 {
-    "careerMatches": [
+    "recommendations": [
         {
             "role": "job title",
-            "matchPercentage": "85%",
-            "averageSalary": "salary range",
-            "marketDemand": "High/Medium/Low",
-            "description": "Brief role description",
-            "requiredSkills": ["skill1", "skill2"],
-            "skillGaps": [
-                {
-                    "skill": "missing skill",
-                    "priority": "High/Medium/Low",
-                    "timeToAcquire": "estimated time",
-                    "impact": "What this skill enables"
-                }
+            "compatibilityScore": "85",
+            "averageSalary": "₹XX-YY LPA",
+            "marketDemand": "High/Medium/Low with growth trend",
+            "description": "Detailed role description including why it's suitable for career transition",
+            "transitionTime": "Estimated time to make the switch",
+            "keyBenefits": [
+                "Benefit 1",
+                "Benefit 2"
             ],
-            "learningRoadmap": [
-                {
-                    "phase": 1,
-                    "focus": "What to learn in this phase",
-                    "duration": "estimated time",
-                    "resources": [
-                        {
-                            "type": "Course/Book/Tutorial",
-                            "name": "resource name",
-                            "platform": "where to find it",
-                            "url": "link to resource",
-                            "difficulty": "Beginner/Intermediate/Advanced"
-                        }
-                    ]
-                }
-            ]
+            "transitionDifficulty": "Easy/Moderate/Challenging",
+            "remotePotential": "Percentage of remote opportunities",
+            "growthPotential": {
+                "shortTerm": "1-2 year outlook",
+                "longTerm": "3-5 year outlook"
+            },
+            "skillTransferability": {
+                "existingSkillsRelevance": "How current skills apply",
+                "transferableSkills": ["skill1", "skill2"]
+            },
+            "industryTrends": {
+                "currentDemand": "Analysis of current job market",
+                "futurePerspective": "Where the role is heading"
+            }
         }
     ]
 }
@@ -81,8 +79,20 @@ Please provide your response in the following JSON format:
 Ensure the suggestions are modern, relevant to current industry demands, and include practical learning resources.`;
 
 // 🎯 1. Get career recommendations
-export async function getCareerRecommendations(skills) {
+export async function getCareerRecommendations(params) {
   try {
+    let prompt;
+    if (typeof params === 'object' && params.type === 'experienced') {
+      prompt = CAREER_PROMPT
+        .replace("{skills}", params.skills.join(", "))
+        .replace("{experience}", params.experience)
+        .replace("{reason}", params.reasonForSwitch)
+        .replace("{workMode}", params.workMode);
+    } else {
+      // Handle the original case for other user types
+      prompt = CAREER_PROMPT.replace("{skills}", params.join(", "));
+    }
+
     const completion = await groq.chat.completions.create({
       messages: [
         {
@@ -92,7 +102,7 @@ export async function getCareerRecommendations(skills) {
         },
         {
           role: "user",
-          content: CAREER_PROMPT.replace("{skills}", skills.join(", ")),
+          content: prompt,
         },
       ],
       model: "llama-3.3-70b-versatile", // ✅ Use a valid Groq model
@@ -114,10 +124,16 @@ export async function getCareerRecommendations(skills) {
 }
 
 // 🎯 2. Skill gap analysis
-export async function getSkillGapAnalysis(currentSkills, targetRole) {
-  const prompt = `As a career development AI, analyze the skill gap for a ${targetRole} position.
+export async function getSkillGapAnalysis(profile, targetRole) {
+  // Ensure skills are in array format
+  const currentSkills = Array.isArray(profile.skills) ? profile.skills : [];
+  
+  const prompt = `As a career development AI, analyze the skill gap for transitioning to a ${targetRole} position.
 
-Current skills: ${currentSkills.join(", ")}
+Current Profile:
+- Skills: ${currentSkills.join(", ")}
+- Years of Experience: ${profile.experienceYears || 'Not specified'}
+- Current Work Mode: ${profile.workMode || 'Not specified'}
 Target role: ${targetRole}
 
 Provide a detailed skill gap analysis in this JSON format:
@@ -133,20 +149,27 @@ Provide a detailed skill gap analysis in this JSON format:
                 "skill": "name of skill",
                 "priority": "High/Medium/Low",
                 "timeToAcquire": "estimated time",
+                "impact": "How this skill affects career transition",
                 "prerequisiteSkills": ["skill1", "skill2"],
-                "learningPath": {
-                    "steps": ["step1", "step2"],
-                    "resources": [
-                        {
-                            "type": "resource type",
-                            "name": "resource name",
-                            "url": "resource link",
-                            "duration": "estimated time"
-                        }
-                    ]
-                }
+                "resources": [
+                    {
+                        "title": "resource name",
+                        "type": "course/book/tutorial",
+                        "url": "resource link",
+                        "duration": "estimated time"
+                    }
+                ]
             }
-        ]
+        ],
+        "transitionPlan": {
+            "phases": [
+                {
+                    "name": "phase name",
+                    "duration": "estimated duration",
+                    "activities": ["activity1", "activity2"]
+                }
+            ]
+        }
     }
 }`;
 

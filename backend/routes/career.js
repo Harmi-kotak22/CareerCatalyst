@@ -19,7 +19,13 @@ import {
     updateStudentProfile,
     getStudentSkillGaps,
     getStudentDevelopmentPath,
-    downloadStudentRoadmapPDF
+    downloadStudentRoadmapPDF,
+    // Experienced-specific controllers
+    getExperiencedProfile,
+    updateExperiencedProfile,
+    getExperiencedCareerRecommendations,
+    getExperiencedSkillGaps,
+    generateExperiencedRoadmapPDF
 } from '../controllers/careerController.js';
 
 const router = express.Router();
@@ -55,5 +61,12 @@ router.post('/student-profile', verifyToken, updateStudentProfile);
 router.get('/student/skill-gaps/:targetRole', verifyToken, getStudentSkillGaps);
 router.post('/student/skill-development', verifyToken, getStudentDevelopmentPath);
 router.get('/student/roadmap-pdf/:targetRole', verifyToken, downloadStudentRoadmapPDF);
+
+// Experienced-specific routes
+router.get('/experienced-profile', verifyToken, getExperiencedProfile);
+router.post('/experienced-profile', verifyToken, updateExperiencedProfile);
+router.post('/experienced/recommendations', verifyToken, getExperiencedCareerRecommendations);
+router.get('/experienced/skill-gaps/:role', verifyToken, getExperiencedSkillGaps);
+router.get('/experienced/roadmap-pdf/:role', verifyToken, generateExperiencedRoadmapPDF);
 
 export default router;

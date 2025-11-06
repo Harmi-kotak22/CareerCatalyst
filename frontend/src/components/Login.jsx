@@ -56,7 +56,11 @@ export default function Login() {
             }
             break;
           case 'Experienced':
-            navigate('/experienced-dashboard');
+            if (user.isProfileComplete) {
+              navigate('/experienced-dashboard');
+            } else {
+              navigate('/experienced-profile');
+            }
             break;
           default:
             navigate('/');
