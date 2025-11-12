@@ -84,6 +84,8 @@ Before you begin, ensure you have the following installed:
         MONGO_URI=<your_mongodb_connection_string>
         JWT_SECRET=<your_jwt_secret_key>
         GROQ_API_KEY=<your_groq_api_key>
+        GOOGLE_API_KEY=<your_google_api_key>
+        GOOGLE_CSE_ID=<your_google_cse_id>
         ```
 
 3.  **Setup the Frontend:**
