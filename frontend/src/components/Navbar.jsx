@@ -1,22 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './Auth.css';
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState('');
+  const [userName, setUserName] = useState('');
 
+  // Check login status whenever the route changes
   useEffect(() => {
+    checkLoginStatus();
+  }, [location.pathname]);
+
+  const checkLoginStatus = () => {
     const token = localStorage.getItem('token');
     const userInfo = localStorage.getItem('user');
     
+    console.log('Token:', token);
+    console.log('User Info:', userInfo);
+    
     if (token && userInfo) {
-      setIsLoggedIn(true);
-      const user = JSON.parse(userInfo);
-      setUserType(user.userType);
+      try {
+        const user = JSON.parse(userInfo);
+        console.log('Parsed User:', user);
+        setIsLoggedIn(true);
+        setUserType(user.userType || user.type); // Handle both userType and type fields
+        setUserName(user.name || '');
+        console.log('Login Status:', true);
+        console.log('User Type:', user.userType || user.type);
+      } catch (error) {
+        console.error('Error parsing user info:', error);
+        handleLogout(); // Clear invalid data
+      }
+    } else {
+      console.log('Not logged in');
+      setIsLoggedIn(false);
+      setUserType('');
+      setUserName('');
     }
-  }, []);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -69,9 +93,19 @@ export default function Navbar() {
               </li>
               <li><a href="#about">About</a></li>
             </ul>
-            <div className="nav-buttons">
-              <span className="user-type">{userType}</span>
-              <button className="btn-secondary" onClick={handleLogout}>Logout</button>
+            <div className="nav-buttons logged-in">
+              <div className="user-info">
+                <span className="user-name">{userName || 'User'}</span>
+                {userType && <span className="user-role">({userType})</span>}
+              </div>
+              <button 
+                className="btn-logout" 
+                onClick={handleLogout}
+                title="Logout"
+              >
+                <span className="logout-icon">↪</span>
+                <span className="logout-text">Logout</span>
+              </button>
             </div>
           </>
         ) : (

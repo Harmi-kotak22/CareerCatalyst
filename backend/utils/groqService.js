@@ -36,12 +36,12 @@ function safeJSONParse(text) {
 }
 
 // 🧩 Career recommendation prompt
-const CAREER_PROMPT = `You are a career advisor AI specializing in technology careers with deep expertise in career transitions. Based on the provided profile, analyze and suggest suitable career transition paths.
+const CAREER_PROMPT = `You are a career advisor AI specializing in technology careers with deep expertise in both entry-level guidance and career transitions. Based on the provided profile, analyze and suggest suitable career paths.
 
 Given profile:
 - Current skills: {skills}
-- Years of experience: {experience}
-- Reason for switch: {reason}
+- Profile type: {experience}
+- Career goal: {reason}
 - Work mode preference: {workMode}
 
 Please provide your response in the following JSON format:
@@ -82,15 +82,38 @@ Ensure the suggestions are modern, relevant to current industry demands, and inc
 export async function getCareerRecommendations(params) {
   try {
     let prompt;
-    if (typeof params === 'object' && params.type === 'experienced') {
+    if (typeof params === 'object') {
+      if (params.type === 'student') {
+        // Handle student profile
+        prompt = CAREER_PROMPT
+          .replace("{skills}", Array.isArray(params.skills) ? params.skills.join(", ") : "")
+          .replace("{experience}", "Student")
+          .replace("{reason}", "Career Start")
+          .replace("{workMode}", "Any");
+      } else if (params.type === 'experienced') {
+        // Handle experienced profile
+        prompt = CAREER_PROMPT
+          .replace("{skills}", Array.isArray(params.skills) ? params.skills.join(", ") : "")
+          .replace("{experience}", params.experience)
+          .replace("{reason}", params.reasonForSwitch)
+          .replace("{workMode}", params.workMode);
+      } else {
+        // Handle any other object with skills array
+        prompt = CAREER_PROMPT
+          .replace("{skills}", Array.isArray(params.skills) ? params.skills.join(", ") : "")
+          .replace("{experience}", "Not specified")
+          .replace("{reason}", "Not specified")
+          .replace("{workMode}", "Not specified");
+      }
+    } else if (Array.isArray(params)) {
+      // Handle the original case where params is just an array of skills
       prompt = CAREER_PROMPT
-        .replace("{skills}", params.skills.join(", "))
-        .replace("{experience}", params.experience)
-        .replace("{reason}", params.reasonForSwitch)
-        .replace("{workMode}", params.workMode);
+        .replace("{skills}", params.join(", "))
+        .replace("{experience}", "Not specified")
+        .replace("{reason}", "Not specified")
+        .replace("{workMode}", "Not specified");
     } else {
-      // Handle the original case for other user types
-      prompt = CAREER_PROMPT.replace("{skills}", params.join(", "));
+      throw new Error("Invalid parameters format");
     }
 
     const completion = await groq.chat.completions.create({

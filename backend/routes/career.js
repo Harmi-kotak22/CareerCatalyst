@@ -17,6 +17,7 @@ import {
     // Student-specific controllers
     getStudentProfile,
     updateStudentProfile,
+    getStudentCareerRecommendations,
     getStudentSkillGaps,
     getStudentDevelopmentPath,
     downloadStudentRoadmapPDF,
@@ -58,6 +59,7 @@ router.get('/fresher/saved-profiles', verifyToken, getSavedProfiles);
 // Student-specific routes
 router.get('/student-profile', verifyToken, getStudentProfile);
 router.post('/student-profile', verifyToken, updateStudentProfile);
+router.get('/student/recommendations', verifyToken, getStudentCareerRecommendations);
 router.get('/student/skill-gaps/:targetRole', verifyToken, getStudentSkillGaps);
 router.post('/student/skill-development', verifyToken, getStudentDevelopmentPath);
 router.get('/student/roadmap-pdf/:targetRole', verifyToken, downloadStudentRoadmapPDF);

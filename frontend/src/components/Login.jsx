@@ -40,8 +40,9 @@ export default function Login() {
       console.log('Login response:', data);
       
       if (res.ok) {
-        // Store the token
+        // Store the token and user data
         localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         
         const user = data.user;
         switch (user.userType) {

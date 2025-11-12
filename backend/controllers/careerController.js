@@ -303,6 +303,36 @@ export const getSavedProfiles = async (req, res) => {
 };
 
 // Student Profile Management
+// Get career recommendations for students
+export const getStudentCareerRecommendations = async (req, res) => {
+    try {
+        const studentProfile = await Student.findOne({ userId: req.user.id });
+        
+        if (!studentProfile) {
+            return res.status(404).json({ message: 'Student profile not found' });
+        }
+
+        // Use the student's skills and profile to get recommendations
+        const recommendations = await getCareerRecommendations({
+            type: 'student',
+            skills: Array.isArray(studentProfile.skills) ? studentProfile.skills : [],
+            interests: Array.isArray(studentProfile.interests) ? studentProfile.interests : [],
+            academicPerformance: studentProfile.academicPerformance || '',
+            currentEducation: studentProfile.currentEducation || ''
+        });
+
+        res.json({
+            recommendations: recommendations.recommendations || []
+        });
+    } catch (error) {
+        console.error('Student career recommendations error:', error);
+        res.status(500).json({ 
+            message: 'Error generating career recommendations',
+            error: error.message 
+        });
+    }
+};
+
 export const getStudentProfile = async (req, res) => {
     try {
         const studentProfile = await Student.findOne({ userId: req.user.id });
