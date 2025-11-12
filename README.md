@@ -36,7 +36,6 @@ CareerCatalyst is a full-stack web application designed to help users navigate t
 
 ### Development & Tooling
 -   **Dev Server**: `nodemon` for backend, `react-scripts` for frontend.
--   **Diagram Conversion**: `sharp` for SVG to PNG conversion.
 -   **Report Generation**: `markdown-it` and `html-docx-js` for report creation.
 
 ---
@@ -139,12 +138,6 @@ You need to run both the backend and frontend servers simultaneously in separate
 │       ├── components/ # React components
 │       ├── App.js      # Main component with routing
 │       └── index.js    # React app entry point
-├── docs/
-│   ├── architecture.png
-│   └── er-diagram.png
-├── tools/              # Helper scripts for conversion
-├── CareerCatalyst_Report.md
-├── CareerCatalyst_Report.docx
 └── README.md
 ```
 
