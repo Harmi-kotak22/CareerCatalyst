@@ -134,17 +134,52 @@
   color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  width: 320px;
-  padding: 1rem;
+  width: 380px;
+  max-width: calc(100vw - 40px);
+  padding: 1rem 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   z-index: 2000;
 }
 
+.profile-popover .popover-field {
+  margin-bottom: 0.75rem;
+}
+
+.profile-popover .popover-field-value {
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
 .profile-popover .popover-header {
   display: flex;
+  justify-content: space-between;
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 0.75rem;
+}
+
+.profile-popover .popover-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-popover .edit-profile-popover-btn {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.profile-popover .edit-profile-popover-btn:hover {
+  background: var(--primary-color);
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .profile-popover .avatar {
@@ -1282,6 +1317,11 @@
   display: grid;
   grid-template-columns: 1fr 2fr;
   gap: 2rem;
+}
+
+/* Make the 'Skills to Develop' card span the full width where current-skills used to be */
+.missing-skills {
+  grid-column: 1 / -1;
 }
 
 .timeline {

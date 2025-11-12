@@ -74,24 +74,8 @@ export default function Navbar() {
           <>
             <ul className="nav-menu">
               <li><button onClick={navigateToDashboard}>Dashboard</button></li>
-              <li>
-                <button onClick={() => {
-                  switch (userType) {
-                    case 'Student':
-                      navigate('/student-profile');
-                      break;
-                    case 'Fresher':
-                      navigate('/fresher-profile');
-                      break;
-                    case 'Experienced':
-                      navigate('/experienced-profile');
-                      break;
-                    default:
-                      break;
-                  }
-                }}>Profile</button>
-              </li>
-              <li><a href="#about">About</a></li>
+              {/* Profile removed from navbar per request */}
+              <li><button onClick={() => navigate('/')}>About</button></li>
             </ul>
             <div className="nav-buttons logged-in">
               <div className="user-info">
@@ -113,7 +97,7 @@ export default function Navbar() {
             <ul className="nav-menu">
               <li><a href="#home">Home</a></li>
               <li><a href="#features">Features</a></li>
-              <li><a href="#about">About</a></li>
+              <li><button onClick={() => navigate('/')}>About</button></li>
               <li><a href="#contact">Contact</a></li>
             </ul>
             <div className="nav-buttons">

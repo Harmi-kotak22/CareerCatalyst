@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import './Auth.css';
@@ -30,8 +30,9 @@ styleElement.textContent = `
     height: 100%;
     padding: 20px;
     border-radius: 8px;
-    background: #fff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   }
 
   .btn-danger {
@@ -65,6 +66,8 @@ const FresherDashboard = () => {
   const [developmentPath, setDevelopmentPath] = useState(null);
   const [savedProfiles, setSavedProfiles] = useState([]);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [showProfilePopover, setShowProfilePopover] = useState(false);
+  const hideTimeoutRef = useRef(null);
   const navigate = useNavigate();
 
   const handleSaveProfile = async (profile) => {
@@ -194,6 +197,12 @@ const FresherDashboard = () => {
     };
 
     fetchUserData();
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = null;
+      }
+    };
   }, [navigate]);
 
 
@@ -208,8 +217,30 @@ const FresherDashboard = () => {
       });
 
       const data = await res.json();
+      // Log what the backend returned so we can debug missing UI updates
+      console.log('fetchCareerRecommendations response:', { status: res.status, ok: res.ok, data });
+
       if (res.ok) {
-        setCareerRecommendations(data);
+        // Normalize various possible shapes into { careerMatches: [] }
+        const normalize = (payload) => {
+          if (!payload) return { careerMatches: [] };
+          if (Array.isArray(payload)) return { careerMatches: payload };
+          if (Array.isArray(payload.careerMatches)) return { careerMatches: payload.careerMatches };
+          if (Array.isArray(payload.recommendations)) return { careerMatches: payload.recommendations };
+          if (Array.isArray(payload.recommendation)) return { careerMatches: payload.recommendation };
+          if (Array.isArray(payload.matches)) return { careerMatches: payload.matches };
+          // Last resort: try to find the first array value in object
+          for (const k of Object.keys(payload)) {
+            if (Array.isArray(payload[k])) return { careerMatches: payload[k] };
+          }
+          return { careerMatches: [] };
+        };
+
+        const normalized = normalize(data);
+        console.log('Normalized career recommendations:', normalized);
+        setCareerRecommendations(normalized);
+      } else {
+        console.error('Failed to fetch career recommendations:', data);
       }
     } catch (err) {
       console.error('Failed to fetch career recommendations:', err);
@@ -322,44 +353,142 @@ const FresherDashboard = () => {
       <Navbar />
       <div className="dashboard-container">
         <div className="dashboard-header">
-          <h1>Welcome, {user?.name}!</h1>
-          <p className="last-login">Last login: {new Date().toLocaleDateString()}</p>
+          <div>
+            <h1>Welcome, {user?.name}!</h1>
+            <p className="last-login">Last login: {new Date().toLocaleDateString()}</p>
+          </div>
+
+          <div
+            className="profile-icon-wrapper"
+            onMouseEnter={() => {
+              if (hideTimeoutRef.current) {
+                clearTimeout(hideTimeoutRef.current);
+                hideTimeoutRef.current = null;
+              }
+              setShowProfilePopover(true);
+            }}
+            onMouseLeave={() => {
+              hideTimeoutRef.current = setTimeout(() => setShowProfilePopover(false), 180);
+            }}
+          >
+            <button
+              className="profile-icon"
+              onClick={() => setShowProfilePopover((s) => !s)}
+              title="View Profile"
+              aria-label="View Profile"
+            >
+              👤
+            </button>
+
+            {showProfilePopover && (
+              <div
+                className="profile-popover"
+                role="dialog"
+                aria-label="Profile preview"
+                onMouseEnter={() => {
+                  if (hideTimeoutRef.current) {
+                    clearTimeout(hideTimeoutRef.current);
+                    hideTimeoutRef.current = null;
+                  }
+                  setShowProfilePopover(true);
+                }}
+                onMouseLeave={() => {
+                  hideTimeoutRef.current = setTimeout(() => setShowProfilePopover(false), 180);
+                }}
+              >
+                <div className="popover-header">
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div className="avatar">
+                      {user?.name
+                        ? user.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase()
+                        : 'U'}
+                    </div>
+                    <div className="user-info">
+                      <div className="user-name">{user?.name}</div>
+                      <div className="user-email">{user?.email}</div>
+                    </div>
+                  </div>
+
+                  <div className="popover-header-actions">
+                    <button
+                      className="btn-secondary edit-profile-popover-btn"
+                      onClick={() => {
+                        navigate('/edit-fresher-profile');
+                        setShowProfilePopover(false);
+                      }}
+                      aria-label="Edit profile"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+
+                <div className="popover-body">
+                  <div className="popover-field">
+                    <strong>Email:</strong>
+                    <div className="popover-field-value">{user?.email || 'Not set'}</div>
+                  </div>
+
+                  <div className="popover-field">
+                    <strong>Work Mode:</strong>
+                    <div className="popover-field-value">{fresherProfile?.workMode || 'Not set'}</div>
+                  </div>
+
+                  <div className="popover-field">
+                    <strong>Salary Preference:</strong>
+                    <div className="popover-field-value">{fresherProfile?.salaryPreferences ? `$${fresherProfile.salaryPreferences}` : 'Not set'}</div>
+                  </div>
+
+                  <div className="popover-field">
+                    <h4>Skills</h4>
+                    <div className="popover-skills">
+                      {fresherProfile?.skills && fresherProfile.skills.length > 0 ? (
+                        fresherProfile.skills.map((s, i) => (
+                          <span key={i} className="skill-tag">{s}</span>
+                        ))
+                      ) : (
+                        <p className="text-muted">No skills added</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="popover-field">
+                    <h4>Interested Roles</h4>
+                    <div className="popover-skills">
+                      {fresherProfile?.interestedRoles && fresherProfile.interestedRoles.length > 0 ? (
+                        fresherProfile.interestedRoles.map((r, idx) => (
+                          <span key={idx} className="skill-tag">{r}</span>
+                        ))
+                      ) : (
+                        <p className="text-muted">No interested roles added</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="profile-actions" style={{ marginTop: '0.5rem' }}>
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        navigate('/edit-fresher-profile');
+                        setShowProfilePopover(false);
+                      }}
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="dashboard-grid">
-          <div className="dashboard-card profile-card">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2>Your Profile</h2>
-              <button 
-                className="btn-secondary"
-                onClick={() => navigate('/edit-fresher-profile')}
-                style={{ padding: '0.5rem 1rem' }}
-              >
-                Edit Profile
-              </button>
-            </div>
-            <div className="profile-info">
-              <p><strong>Email:</strong> {user?.email}</p>
-              <div className="skills-section">
-                <h3>Your Skills</h3>
-                <div className="skills-list">
-                  {fresherProfile?.skills?.map((skill, index) => (
-                    <span key={index} className="skill-tag">{skill}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="profile-details">
-                <p><strong>Work Mode:</strong> {fresherProfile?.workMode}</p>
-                <p><strong>Salary Preference:</strong> ${fresherProfile?.salaryPreferences}</p>
-                <h3>Interested Roles</h3>
-                <div className="skills-list">
-                  {fresherProfile?.interestedRoles?.map((role, index) => (
-                    <span key={index} className="skill-tag">{role}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Profile card removed — profile preview available from the header icon popover */}
 
           <div className="dashboard-card career-recommendations">
             <h2>Career Recommendations</h2>
@@ -374,7 +503,13 @@ const FresherDashboard = () => {
             )}
             <div className="career-list">
               {careerRecommendations ? (
-                careerRecommendations.careerMatches.map((career, index) => (
+                (() => {
+                  // Support both shapes: { careerMatches: [...] } or an array of matches
+                  const careerMatches = Array.isArray(careerRecommendations)
+                    ? careerRecommendations
+                    : careerRecommendations.careerMatches || [];
+
+                  return careerMatches.map((career, index) => (
                   <div 
                     key={index} 
                     className={`career-card ${selectedRole === career.role ? 'selected' : ''}`}
@@ -394,7 +529,8 @@ const FresherDashboard = () => {
                       <span>📈 {career.marketDemand} Demand</span>
                     </div>
                   </div>
-                ))
+                  ));
+                })()
               ) : (
                 <div className="click-prompt">
                   <p>Click the button above to get personalized career recommendations</p>
@@ -585,18 +721,6 @@ const FresherDashboard = () => {
                       </button>
                     </div>
                     <div className="skill-gaps-container">
-                      <div className="current-skills">
-                        <h3>Your Current Skills</h3>
-                        <div className="skills-list">
-                          {skillGaps?.currentSkillsAssessment?.strengths?.map((skill, index) => (
-                            <span key={index} className="skill-tag">{skill}</span>
-                          )) || (
-                            <p>No current skills assessment available</p>
-                          )}
-                        </div>
-                        <p className="skills-relevance">{skillGaps?.currentSkillsAssessment?.relevance}</p>
-                      </div>
-
                       <div className="missing-skills">
                         <h3>Skills to Develop</h3>
                         <div className="skills-selection">
