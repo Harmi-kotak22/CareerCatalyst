@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import './Auth.css';
@@ -12,6 +12,8 @@ const ExperiencedDashboard = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [skillGaps, setSkillGaps] = useState(null);
   const navigate = useNavigate();
+  const [showProfilePopover, setShowProfilePopover] = useState(false);
+  const hideTimeoutRef = useRef(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -55,6 +57,12 @@ const ExperiencedDashboard = () => {
     };
 
     fetchUserData();
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = null;
+      }
+    };
   }, [navigate]);
 
   const fetchExperiencedProfile = async () => {
@@ -200,48 +208,146 @@ const ExperiencedDashboard = () => {
       <Navbar />
       <div className="dashboard-container">
         <div className="dashboard-header">
-          <h1>Welcome, {user?.name}!</h1>
-          <p className="last-login">Last login: {new Date().toLocaleDateString()}</p>
+          <div>
+            <h1>Welcome, {user?.name}!</h1>
+            <p className="last-login">Last login: {new Date().toLocaleDateString()}</p>
+          </div>
+
+          <div
+            className="profile-icon-wrapper"
+            onMouseEnter={() => {
+              if (hideTimeoutRef.current) {
+                clearTimeout(hideTimeoutRef.current);
+                hideTimeoutRef.current = null;
+              }
+              setShowProfilePopover(true);
+            }}
+            onMouseLeave={() => {
+              hideTimeoutRef.current = setTimeout(() => setShowProfilePopover(false), 180);
+            }}
+          >
+            <button
+              className="profile-icon"
+              onClick={() => setShowProfilePopover((s) => !s)}
+              title="View Profile"
+              aria-label="View Profile"
+            >
+              👤
+            </button>
+
+            {showProfilePopover && (
+              <div
+                className="profile-popover"
+                role="dialog"
+                aria-label="Profile preview"
+                onMouseEnter={() => {
+                  if (hideTimeoutRef.current) {
+                    clearTimeout(hideTimeoutRef.current);
+                    hideTimeoutRef.current = null;
+                  }
+                  setShowProfilePopover(true);
+                }}
+                onMouseLeave={() => {
+                  hideTimeoutRef.current = setTimeout(() => setShowProfilePopover(false), 180);
+                }}
+              >
+                <div className="popover-header">
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div className="avatar">
+                      {user?.name
+                        ? user.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase()
+                        : 'U'}
+                    </div>
+                    <div className="user-info">
+                      <div className="user-name">{user?.name}</div>
+                      <div className="user-email">{user?.email}</div>
+                    </div>
+                  </div>
+
+                  <div className="popover-header-actions">
+                    <button
+                      className="btn-secondary edit-profile-popover-btn"
+                      onClick={() => {
+                        navigate('/edit-experienced-profile');
+                        setShowProfilePopover(false);
+                      }}
+                      aria-label="Edit profile"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+
+                <div className="popover-body">
+                  <div className="popover-field">
+                    <strong>Email:</strong>
+                    <div className="popover-field-value">{user?.email || 'Not set'}</div>
+                  </div>
+
+                  <div className="popover-field">
+                    <strong>Experience:</strong>
+                    <div className="popover-field-value">{profile?.experienceYears ? `${profile.experienceYears} years` : 'Not set'}</div>
+                  </div>
+
+                  <div className="popover-field">
+                    <strong>Preferred Work Mode:</strong>
+                    <div className="popover-field-value">{profile?.workMode || 'Not set'}</div>
+                  </div>
+
+                  <div className="popover-field">
+                    <strong>Expected Salary:</strong>
+                    <div className="popover-field-value">{profile?.salaryPreferences ? `₹${profile.salaryPreferences}/year` : 'Not set'}</div>
+                  </div>
+
+                  <div className="popover-field">
+                    <h4>Skills</h4>
+                    <div className="popover-skills">
+                      {profile?.skills && profile.skills.length > 0 ? (
+                        profile.skills.map((s, i) => (
+                          <span key={i} className="skill-tag">{s}</span>
+                        ))
+                      ) : (
+                        <p className="text-muted">No skills added</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="popover-field">
+                    <h4>Career Switch Goals</h4>
+                    <div className="popover-field-value">{profile?.reasonForSwitch || 'Not set'}</div>
+                  </div>
+
+                  {profile?.additionalAchievements && (
+                    <div className="popover-field">
+                      <h4>Achievements</h4>
+                      <div className="popover-field-value">{profile.additionalAchievements}</div>
+                    </div>
+                  )}
+
+                  <div className="profile-actions" style={{ marginTop: '0.5rem' }}>
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        navigate('/edit-experienced-profile');
+                        setShowProfilePopover(false);
+                      }}
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="dashboard-grid">
-          {/* Profile Card */}
-          <div className="dashboard-card profile-card">
-            <h2>Your Professional Profile</h2>
-            <div className="profile-info">
-              <p><strong>Email:</strong> {user?.email}</p>
-              <div className="experience-details">
-                <p><strong>Experience:</strong> {profile?.experienceYears} years</p>
-                <p><strong>Preferred Work Mode:</strong> {profile?.workMode}</p>
-                <p><strong>Expected Salary:</strong> ₹{profile?.salaryPreferences}/year</p>
-              </div>
-              <div className="skills-section">
-                <h3>Your Skills</h3>
-                <div className="skills-list">
-                  {profile?.skills?.map((skill, index) => (
-                    <span key={index} className="skill-tag">{skill}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="switch-reason">
-                <h3>Career Switch Goals</h3>
-                <p>{profile?.reasonForSwitch}</p>
-              </div>
-              {profile?.additionalAchievements && (
-                <div className="achievements">
-                  <h3>Additional Achievements</h3>
-                  <p>{profile?.additionalAchievements}</p>
-                </div>
-              )}
-            </div>
-            <button 
-              className="btn-primary" 
-              onClick={() => navigate('/edit-experienced-profile')}
-              style={{ marginTop: '1rem' }}
-            >
-              Edit Profile
-            </button>
-          </div>
+          {/* Profile card removed — profile preview available from the header icon popover */}
 
           {/* Career Recommendations Card */}
           <div className="dashboard-card career-recommendations">
